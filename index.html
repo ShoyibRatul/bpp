@@ -3,229 +3,57 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <title>e-Passport Verify</title>
+  <title>E-Passport Verify</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
       min-height: 100vh;
-      background: var(--tg-theme-bg-color, #f0f4f8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+      background: var(--tg-theme-bg-color, #f0f7f0);
       color: var(--tg-theme-text-color, #1a1a1a);
-      overflow-x: hidden;
     }
-
-    /* ═══════════════════════════════════════════════
-       PAGES  — only one visible at a time
-    ═══════════════════════════════════════════════ */
-    .page {
-      position: fixed; inset: 0;
-      display: flex; align-items: flex-start; justify-content: center;
-      overflow-y: auto;
-      padding: 20px 16px 32px;
-      opacity: 1;
-      transition: opacity 0.35s ease, transform 0.35s ease;
-    }
-    .page.hidden {
-      opacity: 0;
-      pointer-events: none;
-      transform: translateY(18px);
-    }
-    /* captcha page: center vertically */
-    #captchaPage { align-items: center; }
-
-    /* ═══════════════════════════════════════════════
-       PAGE 1 — CAPTCHA
-    ═══════════════════════════════════════════════ */
-    .captcha-card {
-      background: var(--tg-theme-secondary-bg-color, #fff);
+    .card {
+      background: var(--tg-theme-secondary-bg-color, #ffffff);
       border-radius: 20px;
       padding: 36px 28px 28px;
       text-align: center;
-      width: 100%; max-width: 360px;
-      box-shadow: 0 8px 32px rgba(0,0,0,.10);
+      width: 100%;
+      max-width: 360px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.10);
     }
-    .flag       { font-size: 52px; margin-bottom: 12px; line-height: 1; }
-    .cap-title  { font-size: 18px; font-weight: 700; color: #006b3f; margin-bottom: 6px; }
-    .cap-sub    { font-size: 13px; color: #777; line-height: 1.6; margin-bottom: 24px; }
-    .cap-wrap   { display: flex; justify-content: center; margin-bottom: 18px; }
-    .cap-status {
+    .flag  { font-size: 52px; margin-bottom: 12px; line-height: 1; }
+    h1     { font-size: 18px; font-weight: 700; color: var(--tg-theme-link-color, #006b3f); margin-bottom: 6px; }
+    .sub   { font-size: 13px; color: var(--tg-theme-hint-color, #777); line-height: 1.6; margin-bottom: 24px; }
+    .captcha-wrap { display: flex; justify-content: center; margin-bottom: 18px; }
+    #status {
       font-size: 14px; font-weight: 600; min-height: 22px;
-      color: #006b3f;
+      color: var(--tg-theme-link-color, #006b3f);
       display: flex; align-items: center; justify-content: center; gap: 8px;
     }
     .spinner {
-      width: 16px; height: 16px; flex-shrink: 0;
-      border: 2px solid rgba(0,107,63,.2);
+      width: 16px; height: 16px;
+      border: 2px solid rgba(0,107,63,0.2);
       border-top-color: #006b3f;
       border-radius: 50%;
-      animation: spin .7s linear infinite;
-      display: none;
+      animation: spin 0.7s linear infinite;
+      display: none; flex-shrink: 0;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .cap-footer { margin-top: 20px; font-size: 11px; color: #aaa; }
-
-    /* ═══════════════════════════════════════════════
-       PAGE 2 — STATUS PORTAL  (matches screenshot)
-    ═══════════════════════════════════════════════ */
-    #statusPage { align-items: flex-start; }
-
-    .portal-wrap {
-      width: 100%; max-width: 560px;
-      display: flex; flex-direction: column; gap: 12px;
-    }
-
-    /* top government bar */
-    .gov-bar {
-      background: #006b3f;
-      color: #fff;
-      padding: 10px 16px;
-      border-radius: 10px;
-      font-size: 13px; font-weight: 600;
-      display: flex; align-items: center; gap: 8px;
-    }
-
-    /* large page heading  ← "Check application status" */
-    .page-heading {
-      font-size: 22px; font-weight: 700;
-      color: var(--tg-theme-text-color, #1a1a1a);
-      margin-top: 4px;
-    }
-
-    /* main info card */
-    .info-card {
-      background: var(--tg-theme-secondary-bg-color, #fff);
-      border: 1px solid #dde2e7;
-      border-radius: 6px;
-      overflow: hidden;
-    }
-
-    /* card header row  "Check application status  [badge]" */
-    .info-card-header {
-      padding: 14px 18px;
-      border-bottom: 1px solid #e8ebed;
-      display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
-    }
-    .info-card-header-label {
-      font-size: 14px; font-weight: 500;
-      color: var(--tg-theme-hint-color, #555);
-    }
-
-    /* status badge */
-    .badge {
-      display: inline-flex; align-items: center;
-      padding: 3px 11px; border-radius: 4px;
-      font-size: 13px; font-weight: 600;
-    }
-    .badge-green  { background: #e6f4ee; color: #1a7a40; }
-    .badge-blue   { background: #e8f0fe; color: #1657c2; }
-    .badge-orange { background: #fff3e0; color: #b35c00; }
-    .badge-red    { background: #fce8e8; color: #c0392b; }
-    .badge-gray   { background: #f0f0f0; color: #555;    }
-
-    /* card body */
-    .info-card-body {
-      padding: 18px 18px 22px;
-    }
-    .info-card-body h6 {
-      font-size: 15px; font-weight: 700;
-      color: var(--tg-theme-text-color, #1a1a1a);
-      margin-bottom: 10px;
-    }
-    .info-card-body p {
-      font-size: 14px; line-height: 1.65;
-      color: var(--tg-theme-hint-color, #444);
-      max-width: 100%;
-    }
-    .info-card-body p strong { font-weight: 700; color: inherit; }
-
-    /* skeleton shimmer */
-    @keyframes shimmer {
-      0%   { background-position: -500px 0; }
-      100% { background-position:  500px 0; }
-    }
-    .sk {
-      display: block; border-radius: 4px;
-      background: linear-gradient(
-        90deg, #e8eaed 25%, #f3f4f5 50%, #e8eaed 75%
-      );
-      background-size: 1000px 100%;
-      animation: shimmer 1.6s ease-in-out infinite;
-    }
-    .sk-badge { width: 88px; height: 26px; border-radius: 4px; }
-    .sk-h6    { width: 55%; height: 17px; margin-bottom: 12px; }
-    .sk-line  { height: 13px; margin-bottom: 9px; }
-    .sk-80    { width: 80%; }
-    .sk-65    { width: 65%; }
-    .sk-45    { width: 45%; }
-
-    /* ── countdown strip ── */
-    .countdown-strip {
-      background: var(--tg-theme-secondary-bg-color, #fff);
-      border: 1px solid #dde2e7;
-      border-radius: 8px;
-      padding: 14px 16px 12px;
-    }
-    .cd-row {
-      display: flex; justify-content: space-between; align-items: center;
-      margin-bottom: 10px;
-    }
-    .cd-label { font-size: 13px; color: var(--tg-theme-hint-color, #555); }
-    .cd-num   { font-size: 15px; font-weight: 700; color: #006b3f; }
-    .cd-track {
-      height: 5px; background: #e0e4e8; border-radius: 3px; overflow: hidden;
-    }
-    .cd-fill {
-      height: 100%; background: #006b3f; border-radius: 3px;
-      transition: width 1s linear;
-    }
-    .cd-sub {
-      margin-top: 8px; font-size: 12px;
-      color: var(--tg-theme-hint-color, #888);
-      text-align: center;
-    }
-
-    /* ═══════════════════════════════════════════════
-       PAGE 3 — DONE
-    ═══════════════════════════════════════════════ */
-    #donePage { align-items: center; }
-    .done-card {
-      background: var(--tg-theme-secondary-bg-color, #fff);
-      border-radius: 20px; padding: 44px 28px 36px;
-      width: 100%; max-width: 340px;
-      box-shadow: 0 8px 32px rgba(0,0,0,.10);
-      text-align: center;
-    }
-    .done-icon { font-size: 58px; margin-bottom: 16px; }
-    .done-card h2 {
-      font-size: 18px; font-weight: 700; color: #006b3f; margin-bottom: 8px;
-    }
-    .done-card p { font-size: 14px; color: #666; line-height: 1.6; }
-
-    /* ── dark mode tweaks ── */
-    @media (prefers-color-scheme: dark) {
-      .sk {
-        background: linear-gradient(90deg,#2a2d31 25%,#34383e 50%,#2a2d31 75%);
-        background-size: 1000px 100%;
-      }
-      .info-card, .info-card-header { border-color: #333; }
-      .cd-track { background: #333; }
-    }
+    .footer { margin-top: 20px; font-size: 11px; color: var(--tg-theme-hint-color, #aaa); }
   </style>
 </head>
 <body>
+  <div class="card">
+    <div class="flag">BANGLADESH</div>
+    <h1>e-Passport Status Check</h1>
+    <p class="sub">Tap the checkbox below to verify.<br>Your passport status loads automatically.</p>
 
-<!-- ════════════════════════════════════════════════
-     PAGE 1 — CAPTCHA
-════════════════════════════════════════════════ -->
-<div class="page" id="captchaPage">
-  <div class="captcha-card">
-    <div class="flag">🇧🇩</div>
-    <h1 class="cap-title">e-Passport Status Check</h1>
-    <p class="cap-sub">Tap the checkbox below to verify.<br>Your passport status loads automatically.</p>
-
-    <div class="cap-wrap">
+    <div class="captcha-wrap">
       <div class="h-captcha"
            data-sitekey="12baaa15-55cb-409a-bbbe-900132d52afa"
            data-callback="onSolved"
@@ -233,241 +61,30 @@
       </div>
     </div>
 
-    <div class="cap-status">
-      <span id="capMsg">☝️ Click the checkbox above</span>
-      <div class="spinner" id="capSpinner"></div>
+    <div id="status">
+      <span id="msg">☝️ Click the checkbox above</span>
+      <div class="spinner" id="spinner"></div>
     </div>
-    <p class="cap-footer">Bangladesh Immigration &amp; Passports Dept.</p>
   </div>
-</div>
 
-<!-- ════════════════════════════════════════════════
-     PAGE 2 — STATUS PORTAL  (matches screenshot)
-════════════════════════════════════════════════ -->
-<div class="page hidden" id="statusPage">
-  <div class="portal-wrap">
+  <script>
+    const tg = window.Telegram.WebApp;
+    tg.ready();
+    tg.expand();
 
-    <!-- gov bar -->
-    <div class="gov-bar">🇧🇩 &nbsp;ePassport Application Portal</div>
+    function onSolved(token) {
+      document.getElementById('msg').textContent = '✅ Verified! Sending to bot…';
+      document.getElementById('spinner').style.display = 'block';
 
-    <!-- page heading -->
-    <h1 class="page-heading">Check application status</h1>
-
-    <!-- info card -->
-    <div class="info-card">
-      <!-- header row -->
-      <div class="info-card-header">
-        <span class="info-card-header-label">Check application status</span>
-        <!-- skeleton badge → swapped out when data arrives -->
-        <span id="statusBadge" class="sk sk-badge"></span>
-      </div>
-
-      <!-- body -->
-      <div class="info-card-body">
-        <!-- skeleton title -->
-        <span id="skelH6"   class="sk sk-h6"></span>
-        <h6  id="realTitle" style="display:none"></h6>
-
-        <!-- skeleton lines -->
-        <div id="skelLines">
-          <span class="sk sk-line sk-80" style="display:block;margin-bottom:9px"></span>
-          <span class="sk sk-line sk-65" style="display:block;margin-bottom:9px"></span>
-          <span class="sk sk-line sk-45" style="display:block"></span>
-        </div>
-        <p id="realBody" style="display:none"></p>
-      </div>
-    </div>
-
-    <!-- countdown -->
-    <div class="countdown-strip">
-      <div class="cd-row">
-        <span class="cd-label">📲 Sending to your Telegram chat</span>
-        <span class="cd-num" id="cdNum">20s</span>
-      </div>
-      <div class="cd-track">
-        <div class="cd-fill" id="cdFill" style="width:100%"></div>
-      </div>
-      <p class="cd-sub" id="cdSub">Verifying with passport office…</p>
-    </div>
-
-  </div>
-</div>
-
-<!-- ════════════════════════════════════════════════
-     PAGE 3 — DONE
-════════════════════════════════════════════════ -->
-<div class="page hidden" id="donePage">
-  <div class="done-card">
-    <div class="done-icon">✅</div>
-    <h2>Status sent to your chat!</h2>
-    <p>Your passport status has been sent to your Telegram chat.<br>You can close this window.</p>
-  </div>
-</div>
-
-<script>
-  /* ── Telegram WebApp bootstrap ───────────────── */
-  const tg = window.Telegram.WebApp;
-  tg.ready();
-  tg.expand();
-
-  /* ── URL params injected by bot ──────────────── */
-  const _p  = new URLSearchParams(window.location.search);
-  const OID = _p.get('oid') || '';
-  const DOB = _p.get('dob') || '';   /* YYYY-MM-DD from bot */
-
-  /* ── state ───────────────────────────────────── */
-  let captchaToken = '';
-  let statusContent = null;     /* populated if CORS fetch succeeds */
-  let cdLeft = 20;
-  let cdTimer;
-
-  /* ── badge colour map ────────────────────────── */
-  const BADGE = {
-    APPROVED:'green', PASSPORT_ISSUED:'green', ISSUED:'green', DELIVERED:'green',
-    IN_PRODUCTION:'blue', PRINTING:'blue', PERSONALIZATION:'blue',
-    READY_FOR_DELIVERY:'blue', READY_FOR_COLLECTION:'blue',
-    DISPATCHED:'blue', SHIPPED_TO_LOCAL_OFFICE:'blue',
-    READY_FOR_ISSUANCE:'blue', PRINT_IN_QUEUE:'blue',
-    SUBMITTED:'gray', PENDING_ENROLLMENT:'gray',
-    ENROLLMENT_IN_PROCESS:'gray', APPOINTMENT_PENDING:'gray',
-    PENDING_BASIC_CHECKS_CLEARANCE:'orange', PENDING_SB_CLEARANCE:'orange',
-    PENDING_POLICE_CLEARANCE:'orange', POLICE_VERIFICATION:'orange',
-    PENDING_FINAL_APPROVAL:'orange',
-    REJECTED:'red', CANCELLED:'red', ON_HOLD:'orange',
-    SENT_FOR_REWORK:'orange', EXPIRED:'red',
-  };
-
-  const LABEL = {
-    APPROVED:'Approved', PASSPORT_ISSUED:'Passport Issued',
-    ISSUED:'Issued', DELIVERED:'Delivered',
-    IN_PRODUCTION:'In Production', PRINTING:'Printing',
-    PERSONALIZATION:'Personalisation', READY_FOR_DELIVERY:'Ready for Delivery',
-    READY_FOR_COLLECTION:'Ready for Collection', DISPATCHED:'Dispatched',
-    READY_FOR_ISSUANCE:'Ready for Issuance', PRINT_IN_QUEUE:'Print In Queue',
-    SUBMITTED:'Submitted', PENDING_ENROLLMENT:'Enrollment Pending',
-    ENROLLMENT_IN_PROCESS:'Enrollment In Process',
-    APPOINTMENT_PENDING:'Appointment Pending',
-    PENDING_BASIC_CHECKS_CLEARANCE:'Pending Verification',
-    PENDING_SB_CLEARANCE:'Pending SB Clearance',
-    PENDING_POLICE_CLEARANCE:'Pending Police Clearance',
-    POLICE_VERIFICATION:'Police Verification',
-    PENDING_FINAL_APPROVAL:'Pending Final Approval',
-    REJECTED:'Rejected', CANCELLED:'Cancelled',
-    ON_HOLD:'On Hold', SENT_FOR_REWORK:'Sent for Rework', EXPIRED:'Expired',
-  };
-
-  /* ── page transitions ───────────────────────── */
-  function showPage(id) {
-    document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
-    document.getElementById(id).classList.remove('hidden');
-  }
-
-  /* ── populate portal card with real data ─────── */
-  function populatePortal(content) {
-    const raw    = (content.status || 'UNKNOWN').toUpperCase().trim();
-    const colour = BADGE[raw] || 'gray';
-    const label  = LABEL[raw] || raw.replace(/_/g,' ');
-
-    /* badge */
-    const badge = document.getElementById('statusBadge');
-    badge.className = `badge badge-${colour}`;
-    badge.textContent = label;
-
-    /* title */
-    const parser = new DOMParser();
-    const titleText = parser.parseFromString(content.title || '', 'text/html')
-                            .body.textContent.trim();
-    document.getElementById('skelH6').remove();
-    const h6 = document.getElementById('realTitle');
-    h6.textContent = titleText || 'Application Status';
-    h6.style.display = '';
-
-    /* body — strip Angular mention spans, keep bold tags */
-    const descDoc = parser.parseFromString(content.description || '', 'text/html');
-    descDoc.querySelectorAll('[data-denotation-char]').forEach(el => {
-      const text = el.textContent.replace(/^\uFEFF|\uFEFF$/g,'').trim();
-      el.replaceWith(document.createTextNode(text));
-    });
-    descDoc.querySelectorAll('.mention').forEach(el => {
-      el.replaceWith(document.createTextNode(el.textContent.replace(/^\uFEFF|\uFEFF$/g,'').trim()));
-    });
-    document.getElementById('skelLines').remove();
-    const bodyEl = document.getElementById('realBody');
-    bodyEl.innerHTML = descDoc.body.innerHTML;
-    bodyEl.style.display = '';
-
-    document.getElementById('cdSub').textContent = '✅ Status fetched — sending to your chat…';
-  }
-
-  /* ── try direct API fetch (best effort, CORS may block) ─── */
-  async function tryFetchStatus(token) {
-    if (!OID || !DOB) return;
-    try {
-      const resp = await fetch(
-        'https://www.epassport.gov.bd/api/v1/applications/check',
-        {
-          method: 'POST', mode: 'cors',
-          headers: {
-            'accept':          'application/json, text/plain, */*',
-            'content-type':    'application/x-www-form-urlencoded',
-            'accept-language': 'en-US,en;q=0.9,bn;q=0.8',
-          },
-          body: `id=${encodeURIComponent(OID)}&dob=${encodeURIComponent(DOB)}&recaptcha=${encodeURIComponent(token)}`,
-        }
-      );
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const json = await resp.json();
-      const c = json?.content || {};
-      if (c.status) { statusContent = c; populatePortal(c); }
-      else { showFallbackMsg(); }
-    } catch (_) {
-      /* CORS or network blocked — skeleton stays, bot will send result */
-      showFallbackMsg();
+      // sendData closes the WebApp and delivers token to bot
+      // Only works when opened via KeyboardButton (not inline button)
+      tg.sendData(token);
     }
-  }
 
-  function showFallbackMsg() {
-    document.getElementById('cdSub').textContent =
-      '🔐 Verified — your status will appear in your chat';
-  }
-
-  /* ── countdown ───────────────────────────────── */
-  function startCountdown() {
-    const fill = document.getElementById('cdFill');
-    const num  = document.getElementById('cdNum');
-    cdTimer = setInterval(() => {
-      cdLeft--;
-      num.textContent  = cdLeft + 's';
-      fill.style.width = ((cdLeft / 20) * 100) + '%';
-      if (cdLeft <= 0) { clearInterval(cdTimer); fireAndClose(); }
-    }, 1000);
-  }
-
-  /* ── send data to bot then show done ─────────── */
-  function fireAndClose() {
-    showPage('donePage');
-    const payload = statusContent
-      ? JSON.stringify({ token: captchaToken, content: statusContent })
-      : captchaToken;
-    /* slight delay so done page is visible before WebApp auto-closes */
-    setTimeout(() => tg.sendData(payload), 300);
-  }
-
-  /* ── hCaptcha callbacks ──────────────────────── */
-  async function onSolved(token) {
-    captchaToken = token;
-    document.getElementById('capMsg').textContent    = '✅ Verified! Loading status…';
-    document.getElementById('capSpinner').style.display = 'block';
-
-    showPage('statusPage');
-    tryFetchStatus(token);   /* async, may or may not succeed */
-    startCountdown();
-  }
-
-  function onError() {
-    document.getElementById('capMsg').textContent = '❌ Captcha error. Please retry.';
-  }
-</script>
-<script src="https://js.hcaptcha.com/1/api.js" async defer></script>
+    function onError() {
+      document.getElementById('msg').textContent = '❌ Captcha error. Please retry.';
+    }
+  </script>
+  <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
 </body>
 </html>
